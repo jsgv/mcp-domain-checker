@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-go@v6
+      with:
+        go-version: '1.25.5'
+
+    - uses: extractions/setup-just@v2
+
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v8
+      with:
+        version: latest
+        args: --timeout=5m
+
+    - name: Check for dead code
+      run: |
+        output=$(just deadcode 2>&1)
+        if [ -n "$output" ]; then
+          echo "$output"
+          exit 1
+        fi
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-go@v6
+      with:
+        go-version: '1.25.5'
+
+    - uses: extractions/setup-just@v2
+
+    - name: Run tests
+      run: just test-cover
+
+    - name: Upload coverage
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage
+        path: coverage.out
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-go@v6
+      with:
+        go-version: '1.25.5'
+
+    - uses: extractions/setup-just@v2
+
+    - name: Build project
+      run: just build
+
+    - name: Build Docker image
+      run: just build-docker

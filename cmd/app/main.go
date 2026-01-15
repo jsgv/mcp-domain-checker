@@ -9,7 +9,7 @@ import (
 
 	"github.com/caarlos0/env/v11"
 	"github.com/jsgv/mcp-domain-checker/internal/pkg/namecheap"
-	"github.com/jsgv/mcp-domain-checker/internal/pkg/tools"
+	"github.com/jsgv/mcp-domain-checker/internal/pkg/tool"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 )
@@ -18,7 +18,7 @@ const (
 	addr          = ":8080"
 	serverName    = "com.jsgv.domain-checker"
 	serverTitle   = "Domain Checker"
-	version       = "0.0.1"
+	version       = "1.0.0"
 	serverTimeout = time.Minute * 3
 )
 
@@ -35,11 +35,13 @@ func main() {
 		log.Fatal("Error creating logger: ", err)
 	}
 
-	mcpServer := mcp.NewServer(&mcp.Implementation{
+	mcpServer := mcp.NewServer(&mcp.Implementation{ //nolint:exhaustruct
 		Name:    serverName,
 		Title:   serverTitle,
 		Version: version,
-	}, nil)
+	}, &mcp.ServerOptions{ //nolint:exhaustruct
+		Capabilities: &mcp.ServerCapabilities{}, //nolint:exhaustruct
+	})
 
 	setupTools(mcpServer, logger, &cfg)
 
@@ -58,10 +60,11 @@ func setupTools(mcpServer *mcp.Server, logger *zap.Logger, cfg *config) {
 
 	if namecheapConfig.APIUser != "" && namecheapConfig.APIKey != "" &&
 		namecheapConfig.UserName != "" && namecheapConfig.ClientIP != "" {
-		namecheapTool, err := tools.GetNamecheapTool(logger, namecheapConfig)
+		service, err := namecheap.NewService(logger, namecheapConfig)
 		if err != nil {
-			logger.Warn("Failed to create Namecheap tool", zap.Error(err))
+			logger.Warn("Failed to create Namecheap service", zap.Error(err))
 		} else {
+			namecheapTool := tool.NewTool(service)
 			mcp.AddTool(
 				mcpServer,
 				&mcp.Tool{ //nolint:exhaustruct
@@ -82,11 +85,13 @@ func startServer(mcpServer *mcp.Server, logger *zap.Logger) {
 		return mcpServer
 	}, nil)
 
+	corsHandler := corsMiddleware(handler)
+
 	logger.Info("Starting server on " + addr)
 
 	httpServer := &http.Server{ //nolint:exhaustruct
 		Addr:        addr,
-		Handler:     handler,
+		Handler:     corsHandler,
 		ReadTimeout: serverTimeout,
 	}
 
@@ -94,4 +99,21 @@ func startServer(mcpServer *mcp.Server, logger *zap.Logger) {
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Mcp-Protocol-Version, Mcp-Session-Id")
+		w.Header().Set("Access-Control-Expose-Headers", "Mcp-Session-Id")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
