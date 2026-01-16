@@ -12,9 +12,22 @@ A Model Context Protocol (MCP) server that provides domain availability checking
 
 ## Installation
 
+### Download Binary
+
+Download the latest release from the [releases page](https://github.com/jsgv/mcp-domain-checker/releases):
+
+```bash
+# Using gh CLI (recommended)
+gh release download --repo jsgv/mcp-domain-checker --pattern '*linux_amd64*'
+tar xzf mcp-domain-checker_*_linux_amd64.tar.gz
+
+# Check version
+./mcp-domain-checker --version
+```
+
 ### Prerequisites
 
-- Go 1.25+
+- Go 1.25+ (for building from source)
 - Docker (optional)
 - Namecheap API credentials (required for functionality)
 
@@ -26,10 +39,10 @@ git clone https://github.com/jsgv/mcp-domain-checker.git
 cd mcp-domain-checker
 
 # Build the application
-go build cmd/app/*.go
-
-# Or use just
 just build
+
+# Or manually
+go build -o mcp-domain-checker ./cmd/app
 ```
 
 ### Using Docker
@@ -55,7 +68,7 @@ The following environment variables are required for Namecheap API integration:
 
 ```bash
 NAMECHEAP_API_USER="your-api-username"
-NAMECHEAP_API_KEY="your-api-key" 
+NAMECHEAP_API_KEY="your-api-key"
 NAMECHEAP_USERNAME="your-username"
 NAMECHEAP_CLIENT_IP="your-whitelisted-ip"
 NAMECHEAP_ENDPOINT="https://api.namecheap.com/xml.response"  # or sandbox URL
@@ -73,10 +86,7 @@ LOG_FORMAT="production"   # production or development
 ### Running the Server
 
 ```bash
-# Run directly
-go run cmd/app/*.go
-
-# Or using just
+# Using just
 just run
 
 # Using Docker
@@ -85,13 +95,21 @@ just run-docker
 
 The server will start on `http://localhost:8080`.
 
+### Command Line Options
+
+```bash
+# Show version
+mcp-domain-checker --version
+mcp-domain-checker -v
+```
+
 ### MCP Tool Usage
 
 The server provides a single MCP tool:
 
 - **Tool Name**: `check_availability_namecheap`
 - **Description**: Check domain availability using Namecheap API
-- **Parameters**: 
+- **Parameters**:
   - `domains` (array of strings): List of domains to check (e.g., `["example.com", "example.org"]`)
   - Maximum 50 domains per request
 
@@ -122,6 +140,9 @@ just lint
 # Run tests
 just test
 
+# Check for dead code
+just deadcode
+
 # Build Docker image
 just build-docker
 
@@ -132,20 +153,20 @@ just run-docker
 ### Project Structure
 
 ```
-├── cmd/app/          # Application entry point
-│   ├── config.go     # Configuration and logging setup
-│   └── main.go       # Main application server
-├── internal/pkg/     # Internal packages
-│   ├── namecheap/    # Namecheap API client implementation
-│   │   └── namecheap.go      # API service and types
-│   └── tools/        # MCP tool implementations
-│       ├── domain_checker.go      # Factory for domain tools
-│       └── namecheap_handler.go   # MCP handler for Namecheap tool
-├── Dockerfile        # Docker configuration
-├── justfile          # Task runner configuration
-├── go.mod            # Go module definition
-├── LICENSE           # MIT License
-└── README.md         # This file
+├── cmd/app/              # Application entry point
+│   ├── config.go         # Configuration and logging setup
+│   └── main.go           # Main application server
+├── internal/pkg/         # Internal packages
+│   ├── namecheap/        # Namecheap API client
+│   │   └── namecheap.go  # API service and types
+│   └── tool/             # Generic MCP tool wrapper
+│       └── tool.go       # Tool implementation
+├── .github/workflows/    # CI/CD workflows
+├── Dockerfile            # Docker configuration
+├── justfile              # Task runner configuration
+├── go.mod                # Go module definition
+├── LICENSE               # MIT License
+└── README.md             # This file
 ```
 
 ## License
