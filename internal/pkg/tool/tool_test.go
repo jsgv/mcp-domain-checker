@@ -1,4 +1,4 @@
-package tool
+package tool_test
 
 import (
 	"context"
@@ -6,10 +6,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jsgv/mcp-domain-checker/internal/pkg/tool"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// mockService implements Service[In, Out] for testing.
+// mockService implements tool.Service[In, Out] for testing.
 type mockService struct {
 	name        string
 	description string
@@ -48,11 +49,12 @@ func TestNewTool(t *testing.T) {
 	service := &mockService{
 		name:        "test-tool",
 		description: "A test tool",
+		executeFunc: nil,
 	}
 
-	tool := NewTool(service)
+	testTool := tool.NewTool(service)
 
-	if tool == nil {
+	if testTool == nil {
 		t.Fatal("NewTool() returned nil")
 	}
 }
@@ -97,21 +99,23 @@ func TestToolNameAndDescription(t *testing.T) {
 			service := &mockService{
 				name:        tt.serviceName,
 				description: tt.serviceDesc,
+				executeFunc: nil,
 			}
 
-			tool := NewTool(service)
+			testTool := tool.NewTool(service)
 
-			if got := tool.Name(); got != tt.wantName {
+			if got := testTool.Name(); got != tt.wantName {
 				t.Errorf("Tool.Name() = %v, want %v", got, tt.wantName)
 			}
 
-			if got := tool.Description(); got != tt.wantDescription {
+			if got := testTool.Description(); got != tt.wantDescription {
 				t.Errorf("Tool.Description() = %v, want %v", got, tt.wantDescription)
 			}
 		})
 	}
 }
 
+//nolint:cyclop
 func TestToolHandler_Success(t *testing.T) {
 	t.Parallel()
 
@@ -123,9 +127,9 @@ func TestToolHandler_Success(t *testing.T) {
 		},
 	}
 
-	tool := NewTool(service)
+	testTool := tool.NewTool(service)
 
-	result, output, err := tool.Handler(context.Background(), nil, mockInput{Value: "test-input"})
+	result, output, err := testTool.Handler(context.Background(), nil, mockInput{Value: "test-input"})
 	if err != nil {
 		t.Fatalf("Handler() unexpected error: %v", err)
 	}
@@ -177,25 +181,25 @@ func TestToolHandler_Success(t *testing.T) {
 	}
 }
 
+var errServiceError = errors.New("service error")
+
 func TestToolHandler_ServiceError(t *testing.T) {
 	t.Parallel()
-
-	expectedErr := errors.New("service error")
 
 	service := &mockService{
 		name:        "test",
 		description: "test",
 		executeFunc: func(_ mockInput) (mockOutput, error) {
-			return mockOutput{}, expectedErr
+			return mockOutput{Result: ""}, errServiceError
 		},
 	}
 
-	tool := NewTool(service)
+	testTool := tool.NewTool(service)
 
-	result, output, err := tool.Handler(context.Background(), nil, mockInput{Value: "test"})
+	result, output, err := testTool.Handler(context.Background(), nil, mockInput{Value: "test"})
 
-	if err != expectedErr {
-		t.Errorf("Handler() error = %v, want %v", err, expectedErr)
+	if !errors.Is(err, errServiceError) {
+		t.Errorf("Handler() error = %v, want %v", err, errServiceError)
 	}
 
 	if result != nil {
@@ -230,10 +234,9 @@ func TestToolHandler_JSONMarshalError(t *testing.T) {
 	t.Parallel()
 
 	service := &unmarshalableService{}
-	tool := NewTool(service)
+	testTool := tool.NewTool(service)
 
-	result, _, err := tool.Handler(context.Background(), nil, mockInput{Value: "test"})
-
+	result, _, err := testTool.Handler(context.Background(), nil, mockInput{Value: "test"})
 	if err == nil {
 		t.Error("Handler() expected error for unmarshalable output")
 	}

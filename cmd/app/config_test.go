@@ -36,8 +36,13 @@ func TestCreateLogger(t *testing.T) {
 			t.Parallel()
 
 			cfg := &config{
-				LogLevel:  tt.logLevel,
-				LogFormat: tt.logFormat,
+				LogLevel:          tt.logLevel,
+				LogFormat:         tt.logFormat,
+				NamecheapAPIUser:  "",
+				NamecheapAPIKey:   "",
+				NamecheapUserName: "",
+				NamecheapClientIP: "",
+				NamecheapEndpoint: "",
 			}
 
 			logger, err := createLogger(cfg)
@@ -49,7 +54,7 @@ func TestCreateLogger(t *testing.T) {
 				t.Fatal("createLogger() returned nil logger")
 			}
 
-			logger.Sync() //nolint:errcheck
+			_ = logger.Sync()
 		})
 	}
 }

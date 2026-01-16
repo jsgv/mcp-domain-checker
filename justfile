@@ -12,10 +12,10 @@ export NAMECHEAP_CLIENT_IP := ""
 export NAMECHEAP_ENDPOINT  := "https://api.namecheap.com/xml.response"
 
 build:
-    go build cmd/app/*.go
+    go build -o mcp-domain-checker ./cmd/app
 
 run:
-    go run cmd/app/*.go
+    go run ./cmd/app
 
 lint:
     golangci-lint run --config .golangci.yaml

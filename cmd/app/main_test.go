@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+//nolint:funlen
 func TestCorsMiddleware(t *testing.T) {
 	t.Parallel()
 
@@ -53,6 +54,7 @@ func TestCorsMiddleware(t *testing.T) {
 			nextHandlerCalled := false
 			nextHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				nextHandlerCalled = true
+
 				w.WriteHeader(tt.nextHandlerStatus)
 			})
 
