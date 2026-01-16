@@ -1,4 +1,5 @@
 GIT_HASH := `git rev-parse --short HEAD`
+LDFLAGS := "-X main.version=dev -X main.commit=" + GIT_HASH
 IMAGE_NAME := "jsgv/mcp-domain-checker"
 IMAGE_TAG_HASH := IMAGE_NAME + ":" + GIT_HASH
 IMAGE_TAG_LATEST := IMAGE_NAME + ":latest"
@@ -12,10 +13,10 @@ export NAMECHEAP_CLIENT_IP := ""
 export NAMECHEAP_ENDPOINT  := "https://api.namecheap.com/xml.response"
 
 build:
-    go build -o mcp-domain-checker ./cmd/app
+    go build -ldflags "{{ LDFLAGS }}" -o mcp-domain-checker ./cmd/app
 
 run:
-    go run ./cmd/app
+    go run -ldflags "{{ LDFLAGS }}" ./cmd/app
 
 lint:
     golangci-lint run --config .golangci.yaml

@@ -3,8 +3,11 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/caarlos0/env/v11"
@@ -18,11 +21,29 @@ const (
 	addr          = ":8080"
 	serverName    = "com.jsgv.domain-checker"
 	serverTitle   = "Domain Checker"
-	version       = "1.0.0"
 	serverTimeout = time.Minute * 3
 )
 
+// version and commit are set at build time via -ldflags.
+//
+//nolint:gochecknoglobals
+var (
+	version = "dev"
+	commit  = "unknown"
+)
+
 func main() {
+	showVersion := flag.Bool("version", false, "Print version and exit")
+	flag.BoolVar(showVersion, "v", false, "Print version and exit (shorthand)")
+
+	flag.Parse()
+
+	if *showVersion {
+		_, _ = fmt.Fprintf(os.Stdout, "mcp-domain-checker version %s (commit: %s)\n", version, commit)
+
+		os.Exit(0)
+	}
+
 	var cfg config
 
 	err := env.Parse(&cfg)
