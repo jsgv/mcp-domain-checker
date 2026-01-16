@@ -14,7 +14,7 @@ A Model Context Protocol (MCP) server that provides domain availability checking
 
 ### Prerequisites
 
-- Go 1.24+ 
+- Go 1.25+
 - Docker (optional)
 - Namecheap API credentials (required for functionality)
 
@@ -83,7 +83,7 @@ just run
 just run-docker
 ```
 
-The server will start on `http://localhost:8080` with the MCP SSE endpoint available at `http://localhost:8080/sse`.
+The server will start on `http://localhost:8080`.
 
 ### MCP Tool Usage
 
@@ -102,7 +102,7 @@ The server provides a single MCP tool:
 just tools-list
 
 # Or manually
-npx @modelcontextprotocol/inspector --cli http://localhost:8080/sse --transport http --method tools/list
+npx @modelcontextprotocol/inspector --cli http://localhost:8080 --transport http --method tools/list
 ```
 
 ## Development
@@ -118,6 +118,9 @@ just run
 
 # Lint the code
 just lint
+
+# Run tests
+just test
 
 # Build Docker image
 just build-docker

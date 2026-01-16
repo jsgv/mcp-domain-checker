@@ -12,13 +12,22 @@ export NAMECHEAP_CLIENT_IP := ""
 export NAMECHEAP_ENDPOINT  := "https://api.namecheap.com/xml.response"
 
 build:
-    go build cmd/app/*.go
+    go build -o mcp-domain-checker ./cmd/app
 
 run:
-    go run cmd/app/*.go
+    go run ./cmd/app
 
 lint:
     golangci-lint run --config .golangci.yaml
+
+deadcode:
+    @go run golang.org/x/tools/cmd/deadcode@latest ./...
+
+test:
+    go test -v -race ./...
+
+test-cover:
+    go test -v -race -coverprofile=coverage.out ./...
 
 build-docker:
     docker build -t {{ IMAGE_TAG_HASH }} -t {{ IMAGE_TAG_LATEST }} .
@@ -27,4 +36,4 @@ run-docker:
     docker run --rm -p 8080:8080 {{ IMAGE_TAG_LATEST }}
 
 tools-list:
-    npx @modelcontextprotocol/inspector --cli http://localhost:8080/sse --transport http --method tools/list
+    npx @modelcontextprotocol/inspector --cli http://localhost:8080 --transport http --method tools/list

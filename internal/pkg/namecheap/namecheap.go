@@ -24,15 +24,15 @@ const (
 
 var (
 	// ErrMissingDomains is returned when no domains are provided for checking.
-	ErrMissingDomains        = errors.New("missing domains to check")
+	ErrMissingDomains = errors.New("missing domains to check")
 	// ErrMissingAPICredentials is returned when required API credentials are missing.
 	ErrMissingAPICredentials = errors.New("missing API credentials")
 	// ErrNamecheapAPIFailed is returned when the Namecheap API call fails.
-	ErrNamecheapAPIFailed    = errors.New("Namecheap API call failed")
+	ErrNamecheapAPIFailed = errors.New("Namecheap API call failed")
 	// ErrAPIError is returned when the API returns an error response.
-	ErrAPIError              = errors.New("API error")
+	ErrAPIError = errors.New("API error")
 	// ErrMaxDomainsExceeded is returned when more than 50 domains are requested.
-	ErrMaxDomainsExceeded    = errors.New("max of 50 domains are allowed in a single check command")
+	ErrMaxDomainsExceeded = errors.New("max of 50 domains are allowed in a single check command")
 )
 
 // DomainChecker defines the interface for domain availability checking services.
@@ -58,9 +58,9 @@ type Service struct {
 // All fields are required for successful API authentication.
 type Config struct {
 	// APIUser is the Namecheap API username
-	APIUser  string
+	APIUser string
 	// APIKey is the Namecheap API key for authentication
-	APIKey   string
+	APIKey string
 	// UserName is the Namecheap account username
 	UserName string
 	// ClientIP is the whitelisted IP address for API access
@@ -87,21 +87,21 @@ type ParamsOut struct {
 // It includes availability status, premium domain information, and associated fees.
 type Result struct {
 	// Domain is the domain name that was checked
-	Domain                   string  `json:"domain" jsonschema:"The domain that was checked"`
+	Domain string `json:"domain" jsonschema:"The domain that was checked"`
 	// Available indicates if the domain is available for registration
-	Available                bool    `json:"available" jsonschema:"Indicates if the domain is available for registration"`
+	Available bool `json:"available" jsonschema:"Indicates if the domain is available for registration"`
 	// IsPremiumName indicates whether the domain is classified as premium
-	IsPremiumName            bool    `json:"isPremiumName" jsonschema:"Indicates whether the domain name is premium"`
+	IsPremiumName bool `json:"isPremiumName" jsonschema:"Indicates whether the domain name is premium"`
 	// PremiumRegistrationPrice is the registration cost for premium domains
 	PremiumRegistrationPrice float64 `json:"premiumRegistrationPrice,omitempty" jsonschema:"Registration price"`
 	// PremiumRenewalPrice is the annual renewal cost for premium domains
-	PremiumRenewalPrice      float64 `json:"premiumRenewalPrice,omitempty" jsonschema:"Renewal price for premium domain"`
+	PremiumRenewalPrice float64 `json:"premiumRenewalPrice,omitempty" jsonschema:"Renewal price for premium domain"`
 	// IcannFee is the ICANN registry fee associated with the domain
-	IcannFee                 float64 `json:"icannFee,omitempty" jsonschema:"Fee charged by ICANN"`
+	IcannFee float64 `json:"icannFee,omitempty" jsonschema:"Fee charged by ICANN"`
 	// EapFee is the Early Access Program fee for premium domains
 	EapFee float64 `json:"eapFee,omitempty" jsonschema:"EAP fee"`
 	// Error contains any error message if the domain check failed
-	Error                    string  `json:"error,omitempty" jsonschema:"Error message if domain check failed"`
+	Error string `json:"error,omitempty" jsonschema:"Error message if domain check failed"`
 }
 
 // APIResponse represents the XML response structure from the Namecheap API.
@@ -142,10 +142,9 @@ type DomainCheckResult struct {
 	Description              string `xml:"Description,attr"`
 }
 
-// NewNamecheapTool creates a new NamecheapService with the provided logger and configuration.
+// NewService creates a new Namecheap service with the provided logger and configuration.
 // It validates that all required API credentials are present and returns an error if any are missing.
-// The returned service implements the DomainChecker interface for checking domain availability.
-func NewNamecheapTool(logger *zap.Logger, config Config) (*Service, error) {
+func NewService(logger *zap.Logger, config Config) (*Service, error) {
 	if config.APIUser == "" || config.APIKey == "" || config.UserName == "" || config.ClientIP == "" {
 		return nil, ErrMissingAPICredentials
 	}
@@ -164,6 +163,17 @@ func (n *Service) Description() string {
 // Name returns the name of the Namecheap service.
 func (n *Service) Name() string {
 	return "check_availability_namecheap"
+}
+
+// Execute performs domain availability checking with the given input parameters.
+// It implements the generic Service interface for MCP tool integration.
+func (n *Service) Execute(in ParamsIn) (ParamsOut, error) {
+	results, err := n.DomainsCheck(in.Domains)
+	if err != nil {
+		return ParamsOut{}, fmt.Errorf("%w: %w", ErrNamecheapAPIFailed, err)
+	}
+
+	return ParamsOut{Results: results}, nil
 }
 
 // DomainsCheck checks domain availability for the given list of domains using the Namecheap API.
