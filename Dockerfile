@@ -1,4 +1,4 @@
-FROM golang:1.25.5 AS build
+FROM golang:1.26 AS build
 
 WORKDIR /go/src/app
 
@@ -9,7 +9,7 @@ RUN go mod download
 
 # Copy the rest of the source code
 COPY . .
-RUN go build -o /go/bin/app cmd/app/*.go
+RUN go build -o /go/bin/app cmd/mcp-domain-checker/*.go
 
 FROM gcr.io/distroless/static-debian12
 COPY --from=build /go/bin/app /

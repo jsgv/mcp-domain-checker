@@ -42,7 +42,7 @@ cd mcp-domain-checker
 just build
 
 # Or manually
-go build -o mcp-domain-checker ./cmd/app
+go build -o mcp-domain-checker ./cmd/mcp-domain-checker
 ```
 
 ### Using Docker
@@ -153,7 +153,7 @@ just run-docker
 ### Project Structure
 
 ```
-├── cmd/app/              # Application entry point
+├── cmd/mcp-domain-checker/ # Application entry point
 │   ├── config.go         # Configuration and logging setup
 │   └── main.go           # Main application server
 ├── internal/pkg/         # Internal packages

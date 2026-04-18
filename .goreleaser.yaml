@@ -5,7 +5,7 @@ before:
     - go mod tidy
 
 builds:
-  - main: ./cmd/app
+  - main: ./cmd/mcp-domain-checker
     binary: mcp-domain-checker
     env:
       - CGO_ENABLED=0
