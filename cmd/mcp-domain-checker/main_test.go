@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -60,7 +61,7 @@ func TestCorsMiddleware(t *testing.T) {
 
 			handler := corsMiddleware(nextHandler)
 
-			req := httptest.NewRequest(tt.method, "/", nil)
+			req := httptest.NewRequestWithContext(context.Background(), tt.method, "/", nil)
 			rec := httptest.NewRecorder()
 
 			handler.ServeHTTP(rec, req)
