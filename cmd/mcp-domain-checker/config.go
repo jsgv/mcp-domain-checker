@@ -10,6 +10,7 @@ import (
 type config struct {
 	LogLevel          string `env:"LOG_LEVEL" envDefault:"info"`
 	LogFormat         string `env:"LOG_FORMAT" envDefault:"production"`
+	Transport         string `env:"TRANSPORT" envDefault:"http"`
 	NamecheapAPIUser  string `env:"NAMECHEAP_API_USER"`
 	NamecheapAPIKey   string `env:"NAMECHEAP_API_KEY"`
 	NamecheapUserName string `env:"NAMECHEAP_USERNAME"`

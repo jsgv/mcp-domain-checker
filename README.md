@@ -6,11 +6,17 @@ A Model Context Protocol (MCP) server that provides domain availability checking
 
 - Check domain registration status for multiple domains (up to 50 per request)
 - Built as an MCP server for integration with Claude and other MCP-compatible clients
-- RESTful HTTP interface with Server-Sent Events (SSE) support
+- Two transports: **stdio** (spawned by MCP clients locally) and **streamable HTTP** (long-lived service)
 - Premium domain pricing information and ICANN fees
-- Docker support for easy deployment
+- Docker support for easy HTTP deployment
 
 ## Installation
+
+### `go install`
+
+```bash
+go install github.com/jsgv/mcp-domain-checker/cmd/mcp-domain-checker@latest
+```
 
 ### Download Binary
 
@@ -51,7 +57,7 @@ go build -o mcp-domain-checker ./cmd/mcp-domain-checker
 # Build Docker image
 docker build -t jsgv/mcp-domain-checker:latest .
 
-# Run container
+# Run container (HTTP transport on :8080)
 docker run --rm -p 8080:8080 \
   -e NAMECHEAP_API_USER="your-api-username" \
   -e NAMECHEAP_API_KEY="your-api-key" \
@@ -79,21 +85,58 @@ Optional configuration:
 ```bash
 LOG_LEVEL="info"          # debug, info, warn, error, fatal, panic
 LOG_FORMAT="production"   # production or development
+TRANSPORT="http"          # http or stdio (default: http)
 ```
 
 ## Usage
 
+### Transports
+
+The server supports two transports, selected by the `-transport` flag or the
+`TRANSPORT` environment variable (flag wins). Default is `http`.
+
+- `http` — long-lived streamable HTTP server on `:8080`. Use for Docker or
+  remote deployments.
+- `stdio` — communicates over stdin/stdout using newline-delimited JSON.
+  Use when your MCP client spawns the binary as a subprocess. Logs are written
+  to stderr so they don't corrupt the protocol framing.
+
 ### Running the Server
 
 ```bash
-# Using just
+# HTTP (default)
 just run
 
-# Using Docker
+# Stdio
+just run-stdio
+
+# Docker (HTTP only)
 just run-docker
 ```
 
-The server will start on `http://localhost:8080`.
+The HTTP server listens on `http://localhost:8080`.
+
+### Using with an MCP client (stdio)
+
+After `go install` (or using a downloaded release binary), configure your MCP
+client to spawn the binary. Example Claude Desktop config:
+
+```json
+{
+  "mcpServers": {
+    "domain-checker": {
+      "command": "mcp-domain-checker",
+      "args": ["-transport", "stdio"],
+      "env": {
+        "NAMECHEAP_API_USER": "your-api-username",
+        "NAMECHEAP_API_KEY": "your-api-key",
+        "NAMECHEAP_USERNAME": "your-username",
+        "NAMECHEAP_CLIENT_IP": "your-whitelisted-ip"
+      }
+    }
+  }
+}
+```
 
 ### Command Line Options
 
@@ -101,6 +144,10 @@ The server will start on `http://localhost:8080`.
 # Show version
 mcp-domain-checker --version
 mcp-domain-checker -v
+
+# Select transport (overrides TRANSPORT env)
+mcp-domain-checker -transport stdio
+mcp-domain-checker -transport http
 ```
 
 ### MCP Tool Usage
@@ -116,11 +163,17 @@ The server provides a single MCP tool:
 ### Testing with MCP Inspector
 
 ```bash
-# List available tools
+# HTTP — requires `just run` in another terminal
 just tools-list
 
-# Or manually
+# Stdio — requires `just build` first
+just tools-list-stdio
+
+# Or manually (HTTP)
 npx @modelcontextprotocol/inspector --cli http://localhost:8080 --transport http --method tools/list
+
+# Or manually (stdio)
+npx @modelcontextprotocol/inspector --cli ./mcp-domain-checker -transport stdio --method tools/list
 ```
 
 ## Development
