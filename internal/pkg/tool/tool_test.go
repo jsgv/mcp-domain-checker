@@ -115,7 +115,7 @@ func TestToolNameAndDescription(t *testing.T) {
 	}
 }
 
-//nolint:cyclop
+//nolint:cyclop,funlen
 func TestToolHandler_Success(t *testing.T) {
 	t.Parallel()
 
@@ -134,12 +134,14 @@ func TestToolHandler_Success(t *testing.T) {
 		t.Fatalf("Handler() unexpected error: %v", err)
 	}
 
-	if output.Result != "success: test-input" {
-		t.Errorf("Handler() output.Result = %v, want success: test-input", output.Result)
-	}
-
 	if result == nil {
 		t.Fatal("Handler() returned nil result")
+
+		return
+	}
+
+	if output.Result != "success: test-input" {
+		t.Errorf("Handler() output.Result = %v, want success: test-input", output.Result)
 	}
 
 	if result.IsError {

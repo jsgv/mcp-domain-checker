@@ -38,6 +38,7 @@ func TestCreateLogger(t *testing.T) {
 			cfg := &config{
 				LogLevel:          tt.logLevel,
 				LogFormat:         tt.logFormat,
+				Transport:         "",
 				NamecheapAPIUser:  "",
 				NamecheapAPIKey:   "",
 				NamecheapUserName: "",

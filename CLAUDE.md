@@ -22,7 +22,14 @@ The `justfile` exports Namecheap env vars (all blank by default). Fill them in l
 
 ### Transport
 
-The server currently uses **streamable HTTP** (`mcp.NewStreamableHTTPHandler`) on `:8080` with a permissive CORS middleware — not stdio. That means it's designed to run as a long-lived service (Docker, remote host) that MCP clients connect to over HTTP, not as a subprocess spawned by the client. Keep this in mind when changing transport or wiring up new clients.
+The server supports **two transports**, selected by the `-transport` flag (which overrides the `TRANSPORT` env var). Default is `http`.
+
+- `http` — **streamable HTTP** (`mcp.NewStreamableHTTPHandler`) on `:8080` with a permissive CORS middleware. Long-lived service model for Docker / remote hosts. Shutdown is graceful: SIGINT/SIGTERM triggers `http.Server.Shutdown` with a `shutdownTimeout` drain window.
+- `stdio` — **stdio** (`mcp.StdioTransport{}` via `Server.Run`). Client spawns the binary as a subprocess and speaks newline-delimited JSON over stdin/stdout. This is the `npx`-style local install path (`go install …@latest` + `command: "mcp-domain-checker"`).
+
+**Stdout discipline for stdio:** the transport owns `os.Stdout`. zap's production/development configs default to stderr, so logging is safe. The `--version` flow prints to stdout but `os.Exit(0)`s before the transport starts. Any future code that writes to stdout outside the transport would corrupt stdio framing — don't.
+
+`resolveTransport(flagVal, envVal)` in `main.go` centralises validation. Adding a new transport means extending its switch, the consts, and the dispatch in `main`.
 
 ### Tool registration is config-gated
 

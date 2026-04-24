@@ -7,6 +7,53 @@ import (
 	"testing"
 )
 
+func TestResolveTransport(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		flagVal string
+		envVal  string
+		want    string
+		wantErr bool
+	}{
+		{name: "env http default", flagVal: "", envVal: "http", want: "http", wantErr: false},
+		{name: "env stdio", flagVal: "", envVal: "stdio", want: "stdio", wantErr: false},
+		{name: "flag overrides env", flagVal: "stdio", envVal: "http", want: "stdio", wantErr: false},
+		{name: "flag http overrides stdio env", flagVal: "http", envVal: "stdio", want: "http", wantErr: false},
+		{name: "empty both is invalid", flagVal: "", envVal: "", want: "", wantErr: true},
+		{name: "invalid env", flagVal: "", envVal: "grpc", want: "", wantErr: true},
+		{name: "invalid flag", flagVal: "grpc", envVal: "http", want: "", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := resolveTransport(tt.flagVal, tt.envVal)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("resolveTransport(%q, %q) = %q, nil; want error",
+						tt.flagVal, tt.envVal, got)
+				}
+
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("resolveTransport(%q, %q) returned unexpected error: %v",
+					tt.flagVal, tt.envVal, err)
+			}
+
+			if got != tt.want {
+				t.Errorf("resolveTransport(%q, %q) = %q; want %q",
+					tt.flagVal, tt.envVal, got, tt.want)
+			}
+		})
+	}
+}
+
 //nolint:funlen
 func TestCorsMiddleware(t *testing.T) {
 	t.Parallel()

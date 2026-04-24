@@ -3,11 +3,15 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/caarlos0/env/v11"
@@ -18,11 +22,19 @@ import (
 )
 
 const (
-	addr          = ":8080"
-	serverName    = "com.jsgv.domain-checker"
-	serverTitle   = "Domain Checker"
-	serverTimeout = time.Minute * 3
+	addr            = ":8080"
+	serverName      = "com.jsgv.domain-checker"
+	serverTitle     = "Domain Checker"
+	serverTimeout   = time.Minute * 3
+	shutdownTimeout = time.Second * 10
+
+	transportHTTP  = "http"
+	transportStdio = "stdio"
 )
+
+// errInvalidTransport is returned when the resolved transport value isn't one of
+// the supported options. Declared as a sentinel so callers can errors.Is against it.
+var errInvalidTransport = errors.New("invalid transport")
 
 // version and commit are set at build time via -ldflags.
 //
@@ -35,6 +47,9 @@ var (
 func main() {
 	showVersion := flag.Bool("version", false, "Print version and exit")
 	flag.BoolVar(showVersion, "v", false, "Print version and exit (shorthand)")
+
+	transportFlag := flag.String("transport", "",
+		"Transport: http or stdio (overrides TRANSPORT env; default http)")
 
 	flag.Parse()
 
@@ -51,10 +66,18 @@ func main() {
 		log.Fatal("Error parsing environment variables: ", err)
 	}
 
+	transport, err := resolveTransport(*transportFlag, cfg.Transport)
+	if err != nil {
+		log.Fatal("Error resolving transport: ", err)
+	}
+
 	logger, err := createLogger(&cfg)
 	if err != nil {
 		log.Fatal("Error creating logger: ", err)
 	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	mcpServer := mcp.NewServer(&mcp.Implementation{ //nolint:exhaustruct
 		Name:    serverName,
@@ -66,7 +89,29 @@ func main() {
 
 	setupTools(mcpServer, logger, &cfg)
 
-	startServer(mcpServer, logger)
+	switch transport {
+	case transportStdio:
+		runStdio(ctx, mcpServer, logger)
+	case transportHTTP:
+		runHTTP(ctx, mcpServer, logger)
+	}
+}
+
+// resolveTransport picks the transport to use. A non-empty flag value wins
+// over the env-derived value. Only "http" and "stdio" are accepted.
+func resolveTransport(flagVal, envVal string) (string, error) {
+	value := flagVal
+	if value == "" {
+		value = envVal
+	}
+
+	switch value {
+	case transportHTTP, transportStdio:
+		return value, nil
+	default:
+		return "", fmt.Errorf("%w %q: must be %q or %q",
+			errInvalidTransport, value, transportHTTP, transportStdio)
+	}
 }
 
 func setupTools(mcpServer *mcp.Server, logger *zap.Logger, cfg *config) {
@@ -101,14 +146,21 @@ func setupTools(mcpServer *mcp.Server, logger *zap.Logger, cfg *config) {
 	}
 }
 
-func startServer(mcpServer *mcp.Server, logger *zap.Logger) {
+func runStdio(ctx context.Context, mcpServer *mcp.Server, logger *zap.Logger) {
+	logger.Info("Starting stdio transport")
+
+	err := mcpServer.Run(ctx, &mcp.StdioTransport{})
+	if err != nil && !errors.Is(err, context.Canceled) {
+		logger.Fatal("stdio transport exited with error", zap.Error(err))
+	}
+}
+
+func runHTTP(ctx context.Context, mcpServer *mcp.Server, logger *zap.Logger) {
 	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
 		return mcpServer
 	}, nil)
 
 	corsHandler := corsMiddleware(handler)
-
-	logger.Info("Starting server on " + addr)
 
 	httpServer := &http.Server{ //nolint:exhaustruct
 		Addr:        addr,
@@ -116,9 +168,31 @@ func startServer(mcpServer *mcp.Server, logger *zap.Logger) {
 		ReadTimeout: serverTimeout,
 	}
 
-	err := httpServer.ListenAndServe()
-	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+	errCh := make(chan error, 1)
+
+	go func() {
+		logger.Info("Starting server on " + addr)
+
+		errCh <- httpServer.ListenAndServe()
+	}()
+
+	select {
+	case <-ctx.Done():
+		logger.Info("Shutting down HTTP server")
+
+		// Fresh context: the parent is already cancelled, so using it would
+		// abort Shutdown immediately instead of letting in-flight requests drain.
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+
+		err := httpServer.Shutdown(shutdownCtx) //nolint:contextcheck
+		if err != nil {
+			logger.Error("HTTP server shutdown error", zap.Error(err))
+		}
+	case err := <-errCh:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Fatal("ListenAndServe", zap.Error(err))
+		}
 	}
 }
 
