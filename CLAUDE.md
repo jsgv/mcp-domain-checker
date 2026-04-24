@@ -52,4 +52,39 @@ The Namecheap service (`internal/pkg/namecheap`) is the reference implementation
 
 ## Release flow
 
-Releases are driven by **release-please** (`.github/workflows/release-please.yml`) + **goreleaser** (`.goreleaser.yaml`). Conventional commits on `main` produce release PRs; merging them tags a version, which triggers goreleaser to build cross-platform archives (linux/darwin/windows × amd64/arm64) and publish to GitHub Releases. The changelog filters out `docs:`, `test:`, `ci:`, `chore:` commits.
+Releases are driven by **release-please** (`.github/workflows/release-please.yml`, `release-please-config.json`, `.release-please-manifest.json`) + **goreleaser** (`.goreleaser.yaml`). The manifest tracks the current published version; release-please reads it, scans new conventional commits on `main`, and opens/updates a release PR proposing the next version. Merging that PR tags it, which triggers goreleaser to build cross-platform archives (linux/darwin/windows × amd64/arm64) and publish to GitHub Releases. The changelog filters out `docs:`, `test:`, `ci:`, `chore:` commits.
+
+### Semver mapping (release-type: `go`)
+
+`release-please-config.json` sets `release-type: go`, which uses the default conventional-commits → semver mapping. Commit prefix decides the bump:
+
+| Commit prefix                      | Bump  | In changelog | Example |
+|-----------------------------------|-------|--------------|---------|
+| `feat:`                            | MINOR | yes          | new feature, new flag, new transport |
+| `fix:`                             | PATCH | yes          | bug fix |
+| `perf:`, `refactor:`               | PATCH | yes          | internal-only improvements |
+| `deps:` / `build:`                 | PATCH | yes          | dependency / build changes |
+| `docs:`, `chore:`, `test:`, `ci:`, `style:` | none  | filtered out | no release triggered |
+| any of the above with `!` (e.g. `feat!:`) or a `BREAKING CHANGE:` footer | MAJOR | yes, highlighted | removed flag, renamed env var, changed default behaviour |
+
+### What counts as breaking
+
+Anything a downstream user (Docker operator, MCP-client config, script calling the CLI) would have to change to keep working:
+
+- removing or renaming a flag, env var, or config field (e.g. dropping `TRANSPORT`, renaming `NAMECHEAP_API_KEY`);
+- changing a default that flips observable behaviour (e.g. changing the default `TRANSPORT` from `http` to `stdio`, changing the listen addr from `:8080`);
+- removing a transport, or removing CORS in a way that breaks existing browser clients;
+- removing a tool, or changing a tool's input/output schema in a non-additive way.
+
+Not breaking: adding a new flag with a safe default, adding a new transport/tool, internal refactors, stricter input validation on previously-invalid inputs, graceful-shutdown additions.
+
+When in doubt: if the change is a behavioural improvement that no reasonable caller could depend on the old behaviour of, it's not a break. If you're uncertain, prefer `feat!:` — shipping a premature MAJOR is cheaper to recover from than quietly shipping a break under `feat:`.
+
+### Practical flow
+
+1. Land conventional-commit PRs on `main`. Use the prefix that matches the desired bump.
+2. release-please opens or updates a PR titled `chore(main): release X.Y.Z` with the aggregated changelog and bumped `.release-please-manifest.json`.
+3. Review and merge the release PR when ready — this is the explicit "cut a release" action.
+4. Merging tags `vX.Y.Z`; goreleaser workflow runs and publishes binaries.
+
+Don't hand-edit `.release-please-manifest.json` or create tags manually — the flow owns both.
