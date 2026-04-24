@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/jsgv/mcp-domain-checker/compare/v1.0.0...v1.1.0) (2026-04-24)
+
+
+### Features
+
+* add stdio transport alongside streamable HTTP ([#8](https://github.com/jsgv/mcp-domain-checker/issues/8)) ([354e456](https://github.com/jsgv/mcp-domain-checker/commit/354e456a456df769df2b181f8c3a3698ef006abf))
+
 ## 1.0.0 (2026-01-16)
 
 
